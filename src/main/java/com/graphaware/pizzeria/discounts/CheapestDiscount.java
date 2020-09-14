@@ -1,8 +1,3 @@
-/*
- *  Copyright (C) LogiSpin Italia srl - 2020
- *  
- *  All rights reserved
- */
 package com.graphaware.pizzeria.discounts;
 
 import com.graphaware.pizzeria.model.Pizza;
