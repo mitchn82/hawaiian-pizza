@@ -1,10 +1,9 @@
 package com.graphaware.pizzeria.model;
 
-import lombok.Data;
-
+import java.util.List;
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
-import java.util.List;
+import lombok.Data;
 
 @Entity
 @Data

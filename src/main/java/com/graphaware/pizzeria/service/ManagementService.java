@@ -4,7 +4,9 @@ import com.graphaware.pizzeria.model.PizzeriaUser;
 import com.graphaware.pizzeria.model.UserRole;
 import com.graphaware.pizzeria.repository.PizzeriaUserRepository;
 import com.graphaware.pizzeria.repository.PurchaseRepository;
+import com.graphaware.pizzeria.security.PizzeriaUserPrincipal;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,7 +28,6 @@ public class ManagementService {
     }
 
     private PizzeriaUser getCurrentUser() {
-        //todo change current user
-        return pizzeriaUserRepository.findById(66L).orElseThrow(IllegalArgumentException::new);
+        return ((PizzeriaUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUser();
     }
 }

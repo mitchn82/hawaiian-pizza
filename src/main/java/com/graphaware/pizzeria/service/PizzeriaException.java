@@ -1,8 +1,16 @@
 package com.graphaware.pizzeria.service;
 
 /**
- * This is intentionally simplified by the creators of this challenge as the project does not contain exception handling
+ * This is intentionally simplified by the creators of this challenge as the
+ * project does not contain exception handling
  */
 public class PizzeriaException extends RuntimeException {
+
+    public PizzeriaException() {
+    }
+
+    public PizzeriaException(String string) {
+        super(string);
+    }
 
 }

@@ -3,7 +3,6 @@ package com.graphaware.pizzeria.controller;
 import com.graphaware.pizzeria.model.Pizza;
 import com.graphaware.pizzeria.model.Purchase;
 import com.graphaware.pizzeria.service.PurchaseService;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,9 +44,9 @@ public class PurchaseController {
 	}
 
 	@PutMapping("completePurchase/{id}")
-	public ResponseEntity<Void> completePurchase(@PathVariable("id") long id) {
-		purchaseService.completePurchase(id);
-		return new ResponseEntity<>(HttpStatus.OK);
+	public ResponseEntity<Purchase> completePurchase(@PathVariable("id") long id) {
+		Purchase purchase = purchaseService.completePurchase(id);
+		return new ResponseEntity<>(purchase, HttpStatus.OK);
 	}
 
 	@GetMapping("currentPurchase")

@@ -7,14 +7,13 @@ import com.graphaware.pizzeria.model.PurchaseState;
 import com.graphaware.pizzeria.repository.PizzeriaUserRepository;
 import com.graphaware.pizzeria.repository.PurchaseRepository;
 import com.graphaware.pizzeria.security.PizzeriaUserPrincipal;
-
-import javax.transaction.Transactional;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
+import javax.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -27,6 +26,9 @@ public class PurchaseService {
 
     private final PurchaseRepository purchaseRepository;
     private final PizzeriaUserRepository pizzeriaUserRepository;
+
+    @Autowired
+    private DiscountService discountService;
 
     public PurchaseService(PurchaseRepository purchaseRepository, PizzeriaUserRepository pizzeriaUserRepository) {
         this.purchaseRepository = purchaseRepository;
@@ -47,15 +49,18 @@ public class PurchaseService {
             purchase = new Purchase();
             purchase.setCustomer(currentUser);
             purchase.setState(PurchaseState.DRAFT);
-        } else {
+        }
+        else {
             purchase = purchases.get(0);
         }
         if (purchase.getPizzas() == null) {
-			purchase.setPizzas(new LinkedList<>());
-		}
+            purchase.setPizzas(new LinkedList<>());
+        }
         purchase.setCreationDate(new Date());
+        //TODO: create pizza model based on passed id
+        //actually this method updates models trusting client request, which is bad!
         purchase.getPizzas().add(pizza);
-		purchaseRepository.save(purchase);
+        purchaseRepository.save(purchase);
         return purchase;
     }
 
@@ -75,6 +80,9 @@ public class PurchaseService {
     public Purchase pickPurchase() {
         PizzeriaUser currentUser = getCurrentUser();
         Purchase purchase = purchaseRepository.findFirstByStateEquals(PurchaseState.PLACED);
+        if (purchase == null) {
+            throw new PizzeriaException("Placed Purchase not found");
+        }
         purchase.setWorker(currentUser);
         purchase.setState(PurchaseState.ONGOING);
         //can work only on a single order!
@@ -85,8 +93,8 @@ public class PurchaseService {
         return purchaseRepository.save(purchase);
     }
 
-    @PreAuthorize("hasRole('PIZZA_MAKER')")
-    public void completePurchase(long id) {
+    @PreAuthorize("hasAuthority('PIZZA_MAKER')")
+    public Purchase completePurchase(long id) {
         PizzeriaUser currentUser = getCurrentUser();
 
         Purchase purchase = purchaseRepository.findById(id).orElseThrow(PizzeriaException::new);
@@ -94,48 +102,39 @@ public class PurchaseService {
         if (!purchase.getState().equals(PurchaseState.ONGOING)) {
             throw new PizzeriaException();
         }
-        if (ongoingPurchases.get(currentUser).getId() != purchase.getId()) {
+        if (ongoingPurchases.get(currentUser) != null
+                && ongoingPurchases.get(currentUser).getId() != purchase.getId()) {
             throw new PizzeriaException();
         }
         purchase.setCheckoutDate(new Date());
         purchase.setState(PurchaseState.SERVED);
-        purchase.setAmount(computeAmount(purchase.getPizzas()));
+        purchase.setAmount(computeAmount(purchase));
         purchaseRepository.save(purchase);
         ongoingPurchases.remove(currentUser);
 
         try {
             new EmailService().sendConfirmationEmail(currentUser, purchase);
-        } catch (Exception e) {
         }
+        catch (Exception e) {
+        }
+        //added purchase confirm 
+        return purchase;
     }
 
-    private Double computeAmount(List<Pizza> pizzas) {
+    private Double computeAmount(Purchase purchase) {
+        List<Pizza> pizzas = purchase.getPizzas();
         double totalPrice = 0;
         if (pizzas == null) {
             return 0.0;
         }
-        // buy a pineapple pizza, get 10% off the others
-        boolean applyPineappleDiscount = false;
-        for (Pizza pizza : pizzas) {
-            if (pizza.getToppings().contains("pineapple")) {
-                applyPineappleDiscount = true;
-            }
-        }
-        for (Pizza pizza : pizzas) {
-            if (pizza.getToppings().contains("pineapple")) {
-                totalPrice += pizza.getPrice();
-            }  else {
-                if (applyPineappleDiscount) {
-                        totalPrice += pizza.getPrice() *0.9;
-                } else {
-                    totalPrice += pizza.getPrice();
-                }
-            }
-        }
-        return totalPrice;
+
+        totalPrice = pizzas.stream().mapToDouble(Pizza::getPrice).sum();
+        double discount = discountService.computeDiscount(purchase);
+
+        return totalPrice - discount;
     }
 
-    @PreAuthorize("hasRole('PIZZA_MAKER')")
+    @PreAuthorize("hasAuthority('PIZZA_MAKER')")
     public Purchase getCurrentPurchase() {
         return ongoingPurchases.get(getCurrentUser());
     }
